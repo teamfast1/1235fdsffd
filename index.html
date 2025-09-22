@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мини-хостинг презентаций</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+</head>
+<body>
+    <!-- Топ панель -->
+    <header class="top-header">
+        <div class="container flex items-center justify-between">
+            <div class="flex items-center gap-16">
+                <h1 class="logo">📊 Презентации</h1>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span id="statusText">Подключение...</span>
+                </div>
+            </div>
+            
+            <nav class="main-nav flex items-center gap-16">
+                <button class="btn btn--outline btn--sm" id="homeBtn">Главная</button>
+                <button class="btn btn--outline btn--sm hidden" id="uploadBtn">Загрузить</button>
+                <button class="btn btn--outline btn--sm hidden" id="profileBtn">Профиль</button>
+                <button class="btn btn--outline btn--sm hidden" id="adminBtn">Админ-панель</button>
+                <div class="user-info hidden" id="userInfo">
+                    <span id="userDisplayName"></span>
+                    <button class="btn btn--sm" id="logoutBtn">Выйти</button>
+                </div>
+                <button class="btn btn--primary btn--sm" id="loginBtn">Войти</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Основной контент -->
+    <main class="main-content">
+        <!-- Страница входа -->
+        <div class="page hidden" id="authPage">
+            <div class="container">
+                <div class="auth-container">
+                    <div class="card">
+                        <div class="card__body">
+                            <h2>Вход в систему</h2>
+                            <form id="authForm">
+                                <div class="form-group">
+                                    <label class="form-label" for="email">Email</label>
+                                    <input type="email" id="email" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="password">Пароль</label>
+                                    <input type="password" id="password" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <button type="submit" class="btn btn--primary btn--full-width">Войти</button>
+                                </div>
+                                <div class="form-group">
+                                    <button type="button" class="btn btn--outline btn--full-width" id="registerBtn">Регистрация</button>
+                                </div>
+                                <div class="form-group">
+                                    <button type="button" class="btn btn--secondary btn--full-width" id="googleSignInBtn">
+                                        Войти через Google
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Главная страница -->
+        <div class="page" id="homePage">
+            <div class="container">
+                <div class="page-header">
+                    <h2>Каталог презентаций</h2>
+                    <div class="filters">
+                        <select class="form-control" id="categoryFilter">
+                            <option value="">Все категории</option>
+                            <option value="business">Бизнес</option>
+                            <option value="education">Образование</option>
+                            <option value="tech">Технологии</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="presentations-grid" id="presentationsGrid">
+                    <!-- Презентации будут загружены динамически -->
+                </div>
+                
+                <div class="loading-indicator hidden" id="loadingIndicator">
+                    <div class="spinner"></div>
+                    <p>Загрузка презентаций...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Страница загрузки -->
+        <div class="page hidden" id="uploadPage">
+            <div class="container">
+                <div class="upload-container">
+                    <div class="card">
+                        <div class="card__body">
+                            <h2>Загрузка презентации</h2>
+                            <form id="uploadForm">
+                                <div class="form-group">
+                                    <label class="form-label" for="presentationFile">Файл презентации (PDF)</label>
+                                    <input type="file" id="presentationFile" class="form-control" accept=".pdf" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="title">Название</label>
+                                    <input type="text" id="title" class="form-control" required>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="description">Описание</label>
+                                    <textarea id="description" class="form-control" rows="3"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label" for="category">Категория</label>
+                                    <select id="category" class="form-control" required>
+                                        <option value="business">Бизнес</option>
+                                        <option value="education">Образование</option>
+                                        <option value="tech">Технологии</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="isPublic" checked>
+                                        Публичная презентация
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <button type="submit" class="btn btn--primary btn--full-width">Загрузить</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Админ-панель -->
+        <div class="page hidden" id="adminPage">
+            <div class="container">
+                <div class="admin-header">
+                    <h2>Панель администратора</h2>
+                    <div class="admin-tabs">
+                        <button class="btn btn--outline btn--sm admin-tab active" data-tab="users">Пользователи</button>
+                        <button class="btn btn--outline btn--sm admin-tab" data-tab="presentations">Презентации</button>
+                        <button class="btn btn--outline btn--sm admin-tab" data-tab="stats">Статистика</button>
+                        <button class="btn btn--outline btn--sm admin-tab" data-tab="settings">Настройки</button>
+                    </div>
+                </div>
+
+                <!-- Управление пользователями -->
+                <div class="admin-section" id="adminUsers">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Управление пользователями</h3>
+                            <div class="table-container">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Email</th>
+                                            <th>Имя</th>
+                                            <th>Роль</th>
+                                            <th>Дата регистрации</th>
+                                            <th>Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Управление презентациями -->
+                <div class="admin-section hidden" id="adminPresentations">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Управление презентациями</h3>
+                            <div class="table-container">
+                                <table class="admin-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Название</th>
+                                            <th>Владелец</th>
+                                            <th>Категория</th>
+                                            <th>Статус</th>
+                                            <th>Дата создания</th>
+                                            <th>Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="presentationsTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Статистика -->
+                <div class="admin-section hidden" id="adminStats">
+                    <div class="stats-grid">
+                        <div class="card">
+                            <div class="card__body">
+                                <h3>Общая статистика</h3>
+                                <div class="stats-item">
+                                    <div class="stats-number" id="totalUsers">0</div>
+                                    <div class="stats-label">Пользователей</div>
+                                </div>
+                                <div class="stats-item">
+                                    <div class="stats-number" id="totalPresentations">0</div>
+                                    <div class="stats-label">Презентаций</div>
+                                </div>
+                                <div class="stats-item">
+                                    <div class="stats-number" id="totalViews">0</div>
+                                    <div class="stats-label">Просмотров</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Настройки -->
+                <div class="admin-section hidden" id="adminSettings">
+                    <div class="card">
+                        <div class="card__body">
+                            <h3>Настройки системы</h3>
+                            <form id="settingsForm">
+                                <div class="form-group">
+                                    <label class="form-label">Максимальный размер файла (МБ)</label>
+                                    <input type="number" class="form-control" id="maxFileSize" value="50">
+                                </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="allowRegistration" checked>
+                                        Разрешить регистрацию новых пользователей
+                                    </label>
+                                </div>
+                                <div class="form-group">
+                                    <button type="submit" class="btn btn--primary">Сохранить настройки</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Страница просмотра презентации -->
+        <div class="page hidden" id="presentationPage">
+            <div class="container">
+                <div class="presentation-header">
+                    <button class="btn btn--outline btn--sm" id="backToHome">← Назад</button>
+                    <h2 id="presentationTitle"></h2>
+                </div>
+                
+                <div class="presentation-viewer">
+                    <div class="pdf-controls">
+                        <button class="btn btn--outline btn--sm" id="prevPage">← Предыдущая</button>
+                        <span id="pageInfo">Страница 1 из 1</span>
+                        <button class="btn btn--outline btn--sm" id="nextPage">Следующая →</button>
+                        <button class="btn btn--outline btn--sm" id="zoomOut">-</button>
+                        <button class="btn btn--outline btn--sm" id="zoomIn">+</button>
+                    </div>
+                    
+                    <div class="pdf-container" id="pdfContainer">
+                        <canvas id="pdfCanvas"></canvas>
+                    </div>
+                </div>
+                
+                <div class="presentation-info">
+                    <p id="presentationDescription"></p>
+                    <div class="presentation-meta">
+                        <span class="status" id="presentationCategory"></span>
+                        <span id="presentationAuthor"></span>
+                        <span id="presentationDate"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Модальное окно изменения роли -->
+    <div class="modal hidden" id="roleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Изменить роль пользователя</h3>
+                <button class="close-btn" id="closeRoleModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="roleForm">
+                    <div class="form-group">
+                        <label class="form-label">Пользователь</label>
+                        <p id="roleUserEmail"></p>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="newRole">Новая роль</label>
+                        <select id="newRole" class="form-control">
+                            <option value="guest">Гость</option>
+                            <option value="user">Пользователь</option>
+                            <option value="admin">Администратор</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn--primary">Изменить роль</button>
+                        <button type="button" class="btn btn--outline" id="cancelRole">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Уведомления -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
